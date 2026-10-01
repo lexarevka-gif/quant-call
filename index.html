@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Навигатор звонка QUANT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: слева — текущий шаг звонка (что сказать + кнопки ответов клиента), справа — экстренные ситуации, карточка звонка, цены */
+:root{
+  --bg:#eef0f4; --surface:#ffffff; --ink:#141820; --muted:#5a6272; --line:#d9dde5;
+  --accent:#2f47c2; --accent-ink:#ffffff; --accent-soft:#e6eafb;
+  --say:#fff7df; --say-edge:#d9a93a; --tip:#eef6f1; --tip-edge:#2f8a5a;
+  --warn:#9a5a00; --bad:#b3261e; --good:#1d7a4a;
+  --body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101318; --surface:#191d25; --ink:#e9ecf2; --muted:#9aa2b1; --line:#2b313c;
+  --accent:#8a9dff; --accent-ink:#0f1320; --accent-soft:#232a46;
+  --say:#2b2616; --say-edge:#c89b3c; --tip:#15261d; --tip-edge:#5cc98f;
+  --warn:#e3a14a; --bad:#ff8a80; --good:#5cc98f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101318; --surface:#191d25; --ink:#e9ecf2; --muted:#9aa2b1; --line:#2b313c;
+  --accent:#8a9dff; --accent-ink:#0f1320; --accent-soft:#232a46;
+  --say:#2b2616; --say-edge:#c89b3c; --tip:#15261d; --tip-edge:#5cc98f;
+  --warn:#e3a14a; --bad:#ff8a80; --good:#5cc98f; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;padding-inline:16px;padding-block:16px 48px}
+.app{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:900px){.app{grid-template-columns:minmax(0,1fr)}}
+.bar{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}
+.brand{font-weight:700;font-size:18px}
+.brand small{font-family:var(--mono);font-weight:400;font-size:12px;color:var(--muted);margin-left:8px;letter-spacing:.04em}
+.btn{font:500 14px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer}
+.btn:hover,.btn:focus-visible{border-color:var(--accent);outline:none}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+main.card{padding:20px 22px;min-width:0}
+.crumbs{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:8px;overflow-wrap:anywhere}
+h1{font-size:24px;line-height:1.25;margin:0 0 14px;text-wrap:balance}
+.say{background:var(--say);border-left:4px solid var(--say-edge);border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 14px;font-size:18px;line-height:1.55}
+.say .lbl,.tip .lbl{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.say .lbl{color:var(--warn)}
+.say p{margin:0 0 8px}.say p:last-child{margin:0}
+.tip{background:var(--tip);border-left:4px solid var(--tip-edge);border-radius:0 8px 8px 0;padding:10px 14px;margin:0 0 14px;font-size:15px}
+.tip .lbl{color:var(--good)}
+.tip ul,.say ul{margin:4px 0 0;padding-left:20px}
+.ph{background:var(--accent-soft);color:var(--accent);border-radius:4px;padding:0 5px;font-weight:600}
+.ph.empty{outline:1px dashed var(--accent)}
+.q{font-weight:600;color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.opt{display:flex;gap:10px;align-items:flex-start;text-align:left;font:500 15px/1.35 var(--body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:11px 12px;cursor:pointer}
+.opt:hover,.opt:focus-visible{border-color:var(--accent);background:var(--accent-soft);outline:none}
+.opt kbd{flex:none;font:500 12px var(--mono);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--muted);background:var(--bg)}
+.nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.hint{font-size:12px;color:var(--muted);margin-left:auto;align-self:center}
+.end{border:2px solid var(--accent);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.end .st{font-weight:700;font-size:17px}
+.tpl{border:1px solid var(--line);border-radius:8px;margin:0 0 14px}
+.tpl-h{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);font-weight:600;font-size:14px}
+.tpl pre{margin:0;padding:12px;white-space:pre-wrap;font:14.5px/1.55 var(--body)}
+aside{display:grid;gap:16px;min-width:0}
+aside .card{padding:14px 16px}
+aside h2{font-size:13px;font-family:var(--mono);font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.sos{display:flex;flex-wrap:wrap;gap:6px}
+.sos button{font:500 13px var(--body);border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:5px 10px;cursor:pointer}
+.sos button:hover,.sos button:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+.sos button.red{border-color:var(--bad);color:var(--bad)}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px}
+input,select,textarea{width:100%;font:15px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+textarea{min-height:60px;resize:vertical}
+.row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+details{border-top:1px solid var(--line);padding-top:8px}
+details:first-of-type{border-top:0;padding-top:0}
+summary{cursor:pointer;font-weight:600;font-size:14px;padding:4px 0}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td{padding:4px 0;border-bottom:1px solid var(--line);vertical-align:top}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:8px}
+.small{font-size:12.5px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:14px}
+</style>
+</head>
+<body>
+
+
+<div class="app">
+  <div class="bar">
+    <div class="brand">Навигатор звонка QUANT <small>читайте жёлтое · жмите ответ клиента</small></div>
+    <div class="row" style="margin:0">
+      <button class="btn" id="btnSettings" type="button">Мои данные</button>
+      <button class="btn primary" id="btnNew" type="button">Новый звонок</button>
+    </div>
+  </div>
+
+  <main class="card" id="stage" aria-live="polite"></main>
+
+  <aside>
+    <div class="card">
+      <h2>Внезапно клиент…</h2>
+      <div class="sos" id="sos"></div>
+    </div>
+
+    <div class="card">
+      <h2>Карточка звонка</h2>
+      <label for="fAgency">Агентство</label><input id="fAgency" autocomplete="off">
+      <label for="fLpr">ЛПР: имя, должность</label><input id="fLpr" autocomplete="off">
+      <label for="fContact">Контакт (Telegram, почта, моб.)</label><input id="fContact" autocomplete="off">
+      <label for="fStatus">Статус</label>
+      <select id="fStatus"></select>
+      <label for="fNext">Следующее касание</label><input id="fNext" type="date">
+      <label for="fNote">Комментарий: проект, даты, возражение</label><textarea id="fNote"></textarea>
+      <div class="row"><button class="btn primary" id="btnCopyLog" type="button">Скопировать строку в таблицу</button></div>
+      <p class="small" style="margin:8px 0 0">Вставляется в Excel/Google Таблицу одной строкой: дата · агентство · ЛПР · контакт · статус · следующее касание · комментарий.</p>
+    </div>
+
+    <div class="card">
+      <h2>Шпаргалка</h2>
+      <details open><summary>Персонал, ₽/час (безнал, «от»)</summary>
+        <table>
+          <tr><td>Массовка · до 400 чел.</td><td class="n">570</td></tr>
+          <tr><td>Промоутер · до 150</td><td class="n">800</td></tr>
+          <tr><td>Хелпер, гардероб · до 120</td><td class="n">910</td></tr>
+          <tr><td>Аниматор (есть костюмы) · 50</td><td class="n">1 250</td></tr>
+          <tr><td>Грузчик · 50</td><td class="n">1 360</td></tr>
+          <tr><td>Хостес, администратор · 50</td><td class="n">1 700</td></tr>
+          <tr><td>Охрана ГБР · 50 / промо-модель · 35</td><td class="n">2 270</td></tr>
+          <tr><td>Фото/видео · 8</td><td class="n">3 410</td></tr>
+          <tr><td>Звукорежиссёр · 4</td><td class="n">4 550</td></tr>
+          <tr><td>Ведущий · 5</td><td class="n">6 820</td></tr>
+        </table>
+      </details>
+      <details><summary>Комплекты техники (цена со скидкой)</summary>
+        <table>
+          <tr><td>Звук: эконом / любит. / полупроф.</td><td class="n">14 / 23 / 38 тыс.</td></tr>
+          <tr><td>Свет: эконом / любит. / полупроф.</td><td class="n">10 / 24 / 26 тыс.</td></tr>
+          <tr><td>Лазеры · Заливка</td><td class="n">10 · 11 тыс.</td></tr>
+          <tr><td>Фотозона с монтажом</td><td class="n">от 25 тыс.</td></tr>
+          <tr><td>Выездная точка питания</td><td class="n">от 20,5 тыс.</td></tr>
+          <tr><td>Аквагрим</td><td class="n">от 6 820</td></tr>
+        </table>
+        <p class="small">Техника: JBL PRX 915 + сабы XLF 918, пульт Behringer X32, радиосистемы Shure, свет с DMX, лазеры, дым, холодные фонтаны, шатёр, генератор.</p>
+      </details>
+      <details><summary>Условия</summary>
+        <ul class="small" style="padding-left:18px;margin:4px 0">
+          <li>Новый клиент −15% на первый заказ</li>
+          <li>Постоянным до −20%, за отзыв −5%</li>
+          <li>От 30 000 ₽ доставка бесплатно</li>
+          <li>Печать: бейджи, ролл-апы, баннеры, листовки — цена по запросу</li>
+          <li>Итоговую сумму по телефону не называем, только «от» и расчёт письменно</li>
+        </ul>
+      </details>
+    </div>
+  </aside>
+</div>
+
+<dialog id="dlg" style="border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);max-width:460px;width:calc(100% - 32px);padding:18px">
+  <form method="dialog" id="setForm">
+    <h2 style="font-size:18px;margin:0 0 4px">Мои данные</h2>
+    <p class="small" style="margin:0 0 6px">Подставляются в реплики вместо выделенных полей. Хранятся только в этом браузере. Если чего-то не знаете, спросите руководителя до начала смены.</p>
+    <label for="sName">Ваше имя</label><input id="sName">
+    <label for="sPhone">Ваш телефон</label><input id="sPhone">
+    <label for="sCity">Где работаем (города, регионы)</label><input id="sCity" placeholder="например: Москва и область">
+    <label for="sPay">Оплата</label><input id="sPay" placeholder="например: безнал, с НДС, постоплата до 10 дней">
+    <label for="sCases">Кейсы или портфолио (ссылка, что показать)</label><input id="sCases" placeholder="например: t.me/quant_profi">
+    <div class="row"><button class="btn primary" value="save" type="submit">Сохранить</button><button class="btn" value="cancel" type="submit" formnovalidate>Закрыть</button></div>
+  </form>
+</dialog>
+
+<script>
+(function(){
+var LS={get:function(k,d){try{var v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+var S=LS.get('quant_settings',{});
+var PH={name:['sName','ваше имя'],phone:['sPhone','ваш телефон'],city:['sCity','города, где работаем'],pay:['sPay','условия оплаты'],cases:['sCases','ссылка на кейсы']};
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function fill(html){return html.replace(/\{(\w+)\}/g,function(m,k){
+  if(k==='lpr'){var v=document.getElementById('fLpr').value.split(',')[0].trim();return v?'<span class="ph">'+esc(v)+'</span>':'<span class="ph empty">[имя продюсера]</span>'}
+  if(k==='agency'){var a=document.getElementById('fAgency').value.trim();return a?'<span class="ph">'+esc(a)+'</span>':'<span class="ph empty">[агентство]</span>'}
+  if(k==='case')return '<span class="ph empty">[их кейс с сайта]</span>';
+  var p=PH[k];if(!p)return m;var v=S[k];return v?'<span class="ph">'+esc(v)+'</span>':'<span class="ph empty">['+p[1]+']</span>'})}
+function plain(t){return t.replace(/\{(\w+)\}/g,function(m,k){
+  if(k==='lpr'){var v=document.getElementById('fLpr').value.split(',')[0].trim();return v||'[Имя]'}
+  var p=PH[k];if(!p)return m;return S[k]||'['+p[1]+']'})}
+
+var STATUSES=['—','Запрос на расчёт','Интерес: прайс отправить','База подрядчиков','Перезвонить','Письмо на общую почту','Нет связи','Отказ','Не звонить','Не работает / неверный номер'];
+var sel=document.getElementById('fStatus');STATUSES.forEach(function(s){var o=document.createElement('option');o.textContent=s;sel.appendChild(o)});
+
+/* ---------- Шаблоны сообщений ---------- */
+var T={
+after:'{lpr}, добрый день! Это {name} из QUANT, созванивались сегодня.\n\nКак договорились, отправляю прайс: персонал для площадки (массовка, хелперы, хостес, охрана, гардероб), звук, свет, эффекты, печать.\n\n— первый заказ −15%\n— от 30 000 ₽ доставка техники бесплатно\n— быстро собираем большую команду на площадку\n\nБудет проект — пришлите дату, площадку и количество гостей, посчитаю в течение дня.\n{name}, {phone}\nt.me/quant_profi',
+calc:'{lpr}, добрый день! Это {name} из QUANT. Спасибо за вводные.\n\nФиксирую, чтобы ничего не упустить:\n— дата: \n— город, площадка: \n— гостей: \n— что нужно: \n— часы работы: \n\nРасчёт пришлю до [срок]. Если что-то поменяется, напишите сюда.\n{name}, {phone}',
+wait:'{lpr}, добрый день! Это {name} из QUANT. Как договорились, жду от вас ТЗ по проекту. Посчитаю в течение рабочего дня после получения.\nНа первый заказ у нас −15%.\n{name}, {phone}',
+mail:'Тема: QUANT — персонал и техника для мероприятий {agency}\n\nДобрый день!\n\nМеня зовут {name}, компания QUANT. Мы подрядчик ивент-агентств:\n• Персонал: массовка (до 400 чел.), хелперы, хостес, промоутеры, гардероб, охрана ГБР, грузчики, аниматоры, ведущие, фото и видео.\n• Техника с монтажом: звук (JBL PRX, Behringer X32, Shure), свет, лазеры, дым, холодные фонтаны.\n• Печать и оформление: бейджи, ролл-апы, баннеры, фотозона.\n\nНовым партнёрам −15% на первый заказ, от 30 000 ₽ доставка бесплатно. Прайс во вложении.\n\nПрошу передать письмо специалисту, который отвечает за подрядчиков. Для расчёта достаточно даты, площадки, количества гостей и задачи.\n\n{name}\nQUANT · {phone} · t.me/quant_profi',
+noanswer:'{lpr}, добрый день! Это {name} из QUANT, не смог до вас дозвониться.\n\nМы подрядчик для ивент-агентств: люди на площадку (массовка, хелперы, хостес, охрана) и своя техника (звук, свет, эффекты). Первый заказ −15%.\n\nПришлю прайс, чтобы был под рукой к новогоднему сезону?',
+tender:'{lpr}, добрый день! Это {name} из QUANT. Как договорились, направляю документы для включения в базу подрядчиков: [анкета / реквизиты / портфолио].\nПодскажите, пожалуйста, когда можно уточнить результат?\n{name}, {phone}',
+callback:'{lpr}, добрый день! Это {name} из QUANT. Договорились созвониться [дата, время]. Наберу вас. Если удобнее переписка, можно ответить здесь.'
+};
+
+/* ---------- Сценарий ---------- */
+var N={
+start:{t:'Перед набором · 30 секунд',tip:'<ul><li>Впишите агентство в карточку справа.</li><li>Откройте их сайт: найдите 1 свежий кейс и формат (конференции, корпоративы, фестивали, свадьбы).</li><li>Есть в таблице личная почта сотрудника — спрашивайте его по имени.</li><li>В таблице «сайт не найден» или «нерабочий домен» — в начале уточните, что агентство работает.</li><li>Звоним с 10:00 до 18:00 по времени клиента. Пн утро и пт вечер — хуже всего.</li></ul>',o:[['Готов, набираю','ring']]},
+ring:{t:'Кто ответил?',o:[['Секретарь / общий номер','gk'],['Сразу продюсер или руководитель','open'],['Не берут трубку','noans'],['Автоответчик','vm'],['Голосовое меню / робот','ivr'],['Неверный номер или это не агентство','wrongnum'],['«Агентство больше не работает»','closed']]},
+ivr:{t:'Голосовое меню',tip:'Выбирайте «отдел продаж» или «соединить с сотрудником» (часто 0). Не выбирайте бухгалтерию. Если меню зациклилось, положите трубку и попробуйте другой номер с сайта.',o:[['Ответил человек','gk'],['Не прорвался','noans']]},
+gk:{t:'Секретарь',say:'<p>Добрый день! Меня зовут {name}, компания QUANT, мы подрядчик по персоналу и технике для мероприятий.</p><p>Подскажите, кто у вас отвечает за подбор подрядчиков: продюсер или производственный отдел? Как к нему обращаться?</p>',tip:'Не продавайте секретарю. Ваша цель — имя и соединение или прямой контакт.',o:[['«Соединяю»','open'],['«По какому вопросу?»','gkWhy'],['«Пришлите на почту»','gkMail'],['«Его нет / занят»','gkAbsent'],['«Контакты не даём»','gkNoContact'],['«Нам ничего не нужно»','gkNoNeed'],['«У нас нет такого отдела, я сам решаю»','open']]},
+gkWhy:{t:'«По какому вопросу?»',say:'<p>Мы работаем с ивент-агентствами как подрядчик: даём людей на площадку и технику — звук, свет. Хочу коротко познакомить продюсера и попасть в вашу базу подрядчиков. Это займёт две минуты.</p>',o:[['«Соединяю»','open'],['«Пришлите на почту»','gkMail'],['«Его нет / занят»','gkAbsent'],['«Нам не нужно»','gkNoNeed']]},
+gkMail:{t:'«Пришлите на почту»',say:'<p>Конечно, пришлю. Чтобы письмо не потерялось среди заявок, на чьё имя его адресовать? Кто у вас смотрит предложения подрядчиков?</p>',tip:'Запишите имя и почту в карточку.',o:[['Назвали имя и почту','endMailNamed'],['Дали только общую почту','endMailGeneral']]},
+gkAbsent:{t:'«Его нет на месте / занят»',say:'<p>Понял. Подскажите, как его зовут и когда лучше перезвонить? Может, есть прямой номер или Telegram, чтобы не отвлекать вас?</p>',o:[['Дали прямой контакт','endContact'],['Назвали время перезвона','endCallback'],['Ничего не дали','gkMail']]},
+gkNoContact:{t:'«Контакты не даём»',say:'<p>Понимаю, правило есть правило. Тогда подскажите только имя, чтобы я адресовал письмо лично ему. Отправлю на общую почту.</p>',o:[['Назвали имя','endMailNamed'],['Отказались','endMailGeneral']]},
+gkNoNeed:{t:'«Нам ничего не нужно»',say:'<p>Понимаю, я сейчас ничего не продаю. Мы хотим попасть в базу подрядчиков, чтобы продюсер знал о нас, когда срочно понадобятся люди или техника. Кто у вас ведёт эту базу?</p>',o:[['Назвали человека / соединяют','open'],['Снова отказ','endMailGeneral']]},
+
+open:{t:'Открытие с продюсером',say:'<p>{lpr}, добрый день! {name}, компания QUANT. Мы закрываем для ивент-агентств персонал и технику на площадке: массовку, хелперов, хостес, охрану, плюс свой звук, свет и эффекты.</p><p>Видел ваш проект {case}, классно сделано. Удобно две минуты?</p>',tip:'Кейс не нашли — пропустите фразу про проект. Не выдумывайте.',o:[['«Да, говорите»','q1'],['«Неудобно / занят»','busy'],['«Давайте быстро»','fast'],['«Кто вы? Откуда номер?»','who'],['«Не интересно»','notInt'],['«Я этим не занимаюсь»','notMe']]},
+busy:{t:'Занят',say:'<p>Не буду отвлекать. Когда удобнее: сегодня после 16:00 или завтра до 12:00?</p>',tip:'Предлагайте два конкретных времени, а не «когда удобно». Запишите дату в карточку.',o:[['Назвал время','endCallback'],['«Напишите лучше»','endAfter']]},
+fast:{t:'«Давайте быстро» · 15 секунд',say:'<p>Коротко: когда на проекте не хватает людей или техники, мы закрываем это одним подрядчиком. Массовка до 400 человек, хелперы, хостес, охрана, свой звук и свет с монтажом. На первый заказ −15%.</p><p>Пришлю прайс, чтобы был под рукой. Куда удобнее: Telegram или почта?</p>',o:[['Дал контакт','endAfter'],['Есть проект сейчас','brief'],['Отказ','notInt']]},
+who:{t:'«Кто вы? Откуда у вас номер?»',say:'<p>QUANT, мы подрядчик для ивент-агентств по персоналу и технике. Номер взял с вашего сайта {agency}. Звоню, потому что вы делаете проекты, где нужны люди и техника на площадке.</p>',tip:'Звонили на личный мобильный? Извинитесь, спросите, куда удобнее написать, и не звоните на него больше без согласия.',o:[['Продолжаем разговор','q1'],['«Не звоните мне»','stop'],['«Напишите»','endAfter']]},
+notMe:{t:'«Я этим не занимаюсь»',say:'<p>Подскажите, пожалуйста, кто у вас выбирает подрядчиков по персоналу и технике? Как к нему обращаться и как лучше связаться?</p>',o:[['Назвал и переключает','open'],['Дал контакт','endContact'],['Не знает / не скажет','endMailGeneral']]},
+
+q1:{t:'Вопрос 1 · как закрывают людей и технику',say:'<p>Как вы сейчас закрываете людей и технику на площадке: своими силами или через подрядчиков?</p>',tip:'Задали вопрос — молчите и слушайте. Записывайте ключевое в комментарий.',o:[['«По-разному, ищем под проект»','pain'],['«Уже есть подрядчики»','have'],['«Свой штат / своя техника»','own'],['«Через тендер / базу»','tender'],['«Мы ивенты почти не делаем» (PR, digital)','notProfile'],['«Мы площадка» (лофт, бар, зал)','venue']]},
+pain:{t:'Вопрос 2 · где проседают',say:'<p>Где чаще всего проседаете: не хватает людей на площадке, техники, или подрядчик подводит в последний момент?</p>',o:[['Люди','pPeople'],['Техника','pTech'],['Подводят подрядчики','pTrust'],['Печать, фотозона, мелочи','pPrint'],['«Всё нормально»','have']]},
+pPeople:{t:'Оффер: люди',say:'<p>Это наш профиль. В базе около 400 человек массовки, 150 промоутеров, 120 хелперов и гардеробщиков, по 50 хостес, аниматоров, грузчиков и сотрудников охраны. Соберём команду на крупный проект одним подрядчиком. Массовка от 570 ₽ в час, хелперы от 910 ₽.</p>',o:[['Интересно','close'],['Есть проект сейчас','brief'],['«Дорого»','expensive'],['«А сколько дней нужно на сбор?»','capacity']]},
+pTech:{t:'Оффер: техника',say:'<p>У нас свой парк: акустика JBL PRX, пульт Behringer X32, радиосистемы Shure, свет, лазеры, дым, холодные фонтаны. Привозим с монтажниками и звукорежиссёром. Готовые комплекты: звук для зала от 14 000 ₽, свет от 10 000 ₽. От 30 000 ₽ доставка бесплатно.</p>',o:[['Интересно','close'],['Есть проект сейчас','brief'],['Спросил про конкретное оборудование','equip'],['«Дорого»','expensive']]},
+pTrust:{t:'Оффер: надёжность',say:'<p>Понимаю, это самое неприятное. Поэтому предлагаем начать с небольшого заказа: проверите нас без риска, а на первый заказ скидка 15%.</p>',o:[['Интересно','close'],['«Как проверить, что вы надёжные?»','trust'],['Есть проект сейчас','brief']]},
+pPrint:{t:'Оффер: мелочи к событию',say:'<p>Это тоже можем: бейджи, ролл-апы, баннеры, фотозона с монтажом от 25 000 ₽, выездная точка питания, фото и видео. Чтобы не искать отдельного подрядчика под каждую мелочь.</p>',o:[['Интересно','close'],['Есть проект сейчас','brief']]},
+
+close:{t:'Закрытие на следующий шаг',say:'<p>Отправлю вам прайс и комплекты, чтобы были под рукой. Куда удобнее: Telegram или почта?</p><p>И давайте я наберу вам в начале ноября, когда начнёте собирать новогодние корпоративы. Договорились?</p>',tip:'Перед прощанием повторите договорённость одной фразой: «Итак, прайс в Telegram сегодня, созваниваемся 5 ноября». Запишите дату.',o:[['Дал контакт, договорились','endAfter'],['Есть проект — посчитайте','brief'],['Отказ','notInt']]},
+brief:{t:'Бриф по проекту',say:'<p>Давайте посчитаю. Мне нужно несколько вводных:</p><ul><li>дата и часы работы</li><li>город и площадка</li><li>сколько гостей</li><li>что нужно: люди (кто, сколько), техника, печать</li><li>есть ли бюджет, в который надо попасть</li></ul><p>Расчёт пришлю сегодня или завтра до 12:00. Куда: Telegram или почта?</p>',tip:'<ul><li>Итоговую сумму по телефону не называйте.</li><li>Наличие людей и техники на дату не обещайте: «Проверю и подтвержу в расчёте».</li><li>Город не из {city}? Не обещайте выезд, скажите «уточню и вернусь».</li><li>Сразу после звонка передайте бриф руководителю.</li></ul>',o:[['Дали вводные и контакт','endCalc'],['Пришлют ТЗ позже','endWait']]},
+tender:{t:'Работают через тендер или базу',say:'<p>Подскажите, что нужно, чтобы попасть в вашу базу подрядчиков: анкета, реквизиты, портфолио? Кому отправить и когда у вас следующий отбор?</p>',o:[['Объяснили, куда отправить','endTender'],['«Сейчас не набираем»','noProj']]},
+notProfile:{t:'PR или digital-агентство',say:'<p>Понимаю. А бывают у вас мероприятия для клиентов: пресс-завтраки, презентации, запуски? Там часто нужны хостес, промо-модели, фото, бейджи, ролл-апы. Могу прислать прайс на такой случай.</p>',o:[['Интересно','close'],['Нет','endRefuse']]},
+venue:{t:'Площадка (лофт, бар, зал)',say:'<p>Отлично. Гостям на ваших событиях часто нужен звук, свет, гардероб или хостес. Можем стать вашим рекомендованным подрядчиком: вы советуете нас клиентам, мы обеспечиваем технику и людей. Интересно обсудить?</p>',o:[['Интересно','close'],['Нет','endRefuse']]},
+
+have:{t:'«У нас уже есть подрядчики»',say:'<p>Отлично, значит, вы знаете цену надёжному подрядчику. Мы не просим менять текущих. Предлагаю быть запасным вариантом, когда у основного занята дата или нужно больше людей, чем он даёт. Пришлю прайс на такой случай?</p>',o:[['Да','close'],['Нет','endRefuse']]},
+own:{t:'«Свой штат и своя техника»',say:'<p>Тем лучше, значит, мы нужны только на пиковые даты. Когда в один день два-три события, своих людей обычно не хватает. Можем подстраховать массовкой, хелперами, гардеробом или дополнительным светом.</p>',o:[['Согласен, пришлите','close'],['Нет','endRefuse']]},
+noProj:{t:'«Сейчас нет проектов»',say:'<p>Понимаю. Когда обычно начинаете собирать подрядчиков под новогодний сезон? Наберу как раз к этому времени, а прайс пришлю сейчас, чтобы был под рукой.</p>',o:[['Назвал срок','endAfter'],['Нет','endRefuse']]},
+notInt:{t:'«Не интересно»',say:'<p>Понял. Одним вопросом: не интересно сейчас, потому что подрядчики уже есть или потому что таких задач нет?</p>',tip:'Одна попытка. Второй отказ — вежливо прощаемся.',o:[['«Подрядчики есть»','have'],['«Задач нет»','noProj'],['Повторный отказ','endRefuse']]},
+stop:{t:'«Не звоните больше»',say:'<p>Понял, больше не побеспокою. Извините за беспокойство, хорошего дня!</p>',tip:'Не спорьте и не уговаривайте. Статус «Не звонить», агентство больше не набираем.',o:[['Завершить','endStop']]},
+
+price:{t:'«Сколько стоит?»',say:'<p>Зависит от объёма и даты. Например: массовка от 570 ₽ в час, хелпер от 910 ₽, хостес от 1 700 ₽, звук для зала комплектом от 14 000 ₽, свет от 10 000 ₽. На первый заказ −15%. Скажите, что за проект, и я посчитаю точно.</p>',o:[['Рассказал про проект','brief'],['Продолжить разговор','close']]},
+expensive:{t:'«Дорого»',say:'<p>С какими цифрами сравниваете? Посчитаю ваш случай: на первый заказ скидка 15%, постоянным до 20%, от 30 000 ₽ доставка бесплатно. Часто выходит дешевле, чем собирать пять подрядчиков по отдельности.</p>',tip:'Не снижайте цену сами. Сверх 15% без руководителя не обещайте.',o:[['Давайте посчитаем','brief'],['Пришлите прайс','close'],['Отказ','endRefuse']]},
+discount:{t:'«Дайте скидку больше»',say:'<p>На первый заказ −15% — это максимум, который я могу дать сам. Если объём большой, передам руководителю, и мы посмотрим индивидуально. Какой объём планируете?</p>',o:[['Назвал объём','brief'],['Продолжить','close']]},
+trust:{t:'«Мы вас не знаем»',say:'<p>Справедливо. Проще всего проверить на небольшом заказе, для этого и скидка 15%. Могу прислать кейсы и отзывы: {cases}.</p>',o:[['Пришлите','close'],['Отказ','endRefuse']]},
+capacity:{t:'«Сколько людей и как быстро соберёте?»',say:'<p>В базе около 400 человек массовки, 150 промоутеров, 120 хелперов. Точный срок зависит от даты и количества, подтвержу в расчёте. Какая дата и сколько нужно?</p>',tip:'Не обещайте срок сбора сами. Всё сверх базы («нужно 600 человек завтра») — «уточню и вернусь сегодня».',o:[['Назвал проект','brief'],['Продолжить','close']]},
+equip:{t:'Вопрос про конкретное оборудование',say:'<p>Из того, что у нас есть: JBL PRX 915 и сабвуферы PRX XLF 918, пульты Behringer X32 и 1204USB, радиосистемы Shure AD4Q, SLX с Beta 58, головные и петличные KSM8, световые головы, лазеры, дым-машины, холодные фонтаны. Если нужна модель, которой нет в списке, уточню и вернусь сегодня.</p>',tip:'Технический райдер клиента не подтверждайте на словах, передайте звукорежиссёру.',o:[['Продолжить','close'],['Есть проект','brief']]},
+city:{t:'«Работаете в нашем городе?»',say:'<p>Мы работаем: {city}. </p><p>Если их город не в списке: «Сейчас работаем в {city}. Будут проекты у нас — будем рады. Выезд в ваш город уточню и вернусь».</p>',tip:'Не обещайте выезд без согласования с руководителем.',o:[['Город подходит — продолжаем','close'],['Город не подходит','endRefuse']]},
+legal:{t:'Договор, НДС, оплата',say:'<p>Работаем по договору, по безналу. Условия: {pay}. Все документы для бухгалтерии предоставляем.</p>',tip:'Не знаете ответа — не придумывайте: «Уточню у бухгалтерии и напишу сегодня».',o:[['Продолжить','close']]},
+turnkey:{t:'«А мероприятие под ключ можете?»',say:'<p>Можем взять исполнение целиком под вашим брендом: люди, техника, программа, координация на площадке. Клиент видит только вас. Расскажите, что за проект?</p>',tip:'Сами агентству «под ключ» не предлагаем, только если спросили.',o:[['Рассказал проект','brief'],['Продолжить','close']]},
+unknown:{t:'Вопрос, на который вы не знаете ответа',say:'<p>Хороший вопрос, не хочу ответить неточно. Уточню и напишу вам сегодня до 18:00. Куда удобнее?</p>',tip:'Запишите вопрос в комментарий и выполните обещание в срок. Это лучше любого «наверное».',o:[['Дал контакт','close']]},
+dropped:{t:'Связь оборвалась',tip:'Перезвоните сами в течение минуты. Не дозвонились — отправьте сообщение «Связь прервалась, удобно продолжить позже?».',say:'<p>{lpr}, извините, связь прервалась. Мы остановились на том, что…</p>',o:[['Продолжаем','q1'],['Не дозвонился','endNoAns']]},
+badline:{t:'Плохо слышно',say:'<p>Вас плохо слышно, давайте я перезвоню, это займёт минуту.</p>',o:[['Перезвонил, продолжаем','q1'],['Договорились о переписке','endAfter']]},
+personal:{t:'Попали на личный номер',say:'<p>Прошу прощения, что звоню на личный номер. Подскажите, куда удобнее написать по рабочему вопросу? Займу минуту.</p>',o:[['Дал рабочий контакт','endContact'],['«Говорите сейчас»','q1'],['Недоволен','stop']]},
+left:{t:'«Этот человек у нас больше не работает»',say:'<p>Спасибо, что сказали. Подскажите, кто сейчас отвечает за подрядчиков и как к нему обращаться?</p>',tip:'Обновите имя в таблице.',o:[['Назвали','open'],['Не сказали','endMailGeneral']]},
+angry:{t:'Клиент грубит',say:'<p>Извините, что отвлёк. Хорошего дня.</p>',tip:'Не отвечайте тем же, не оправдывайтесь. Коротко попрощайтесь.',o:[['Завершить','endStop']]},
+
+noans:{t:'Не берут трубку',tip:'Не больше 3 попыток в разное время (утро, после обеда, ближе к вечеру) в течение недели. Параллельно попробуйте другой номер с сайта. После третьей — письмо и статус «Нет связи».',o:[['Это была 1–2 попытка','endRetry'],['Это 3 попытка','endNoAns']]},
+vm:{t:'Автоответчик',say:'<p>{lpr}, добрый день, это {name} из QUANT. Мы закрываем для агентств персонал и технику на площадке. Напишу вам коротко в Telegram. Мой номер {phone}.</p>',tip:'Не длиннее 20 секунд. Номер произнесите медленно.',o:[['Оставил сообщение','endRetry']]},
+wrongnum:{t:'Неверный номер',say:'<p>Извините, ошибся номером. Хорошего дня!</p>',tip:'Поищите другой номер на сайте агентства. Не нашли — статус «Не работает / неверный номер».',o:[['Завершить','endDead']]},
+closed:{t:'Агентство закрылось',say:'<p>Спасибо, что сказали. А не подскажете, куда перешла команда? Возможно, продюсер работает в другом агентстве.</p>',o:[['Завершить','endDead']]},
+
+endAfter:{end:'Интерес: прайс отправить',next:14,t:'Итог: интерес',todo:'В течение часа отправьте сообщение с прайсом. В день касания позвоните.',tpl:['after','Сообщение после звонка (Telegram / WhatsApp)']},
+endCalc:{end:'Запрос на расчёт',next:1,t:'Итог: запрос на расчёт',todo:'Сразу отправьте сообщение с фиксацией вводных и передайте бриф руководителю. Расчёт — в обещанный срок.',tpl:['calc','Фиксация брифа']},
+endWait:{end:'Запрос на расчёт',next:2,t:'Итог: ждём ТЗ',todo:'Отправьте сообщение-напоминание. Нет ТЗ через 2 дня — позвоните.',tpl:['wait','Напоминание о ТЗ']},
+endTender:{end:'База подрядчиков',next:7,t:'Итог: база подрядчиков',todo:'Соберите документы с руководителем и отправьте. Через неделю уточните результат.',tpl:['tender','Письмо с документами']},
+endCallback:{end:'Перезвонить',next:1,t:'Итог: перезвонить',todo:'Поставьте точные дату и время в карточке. Позвоните ровно тогда.',tpl:['callback','Подтверждение перезвона (если дали мессенджер)']},
+endContact:{end:'Перезвонить',next:1,t:'Итог: есть прямой контакт',todo:'Позвоните или напишите ЛПР напрямую, представьтесь и сошлитесь на разговор с коллегой.',tpl:['noanswer','Первое сообщение ЛПР']},
+endMailNamed:{end:'Письмо на общую почту',next:5,t:'Итог: письмо на имя ЛПР',todo:'Отправьте письмо с прайсом, в первой строке обратитесь по имени. Через 3–5 дней позвоните и спросите это имя.',tpl:['mail','Письмо']},
+endMailGeneral:{end:'Письмо на общую почту',next:14,t:'Итог: письмо на общую почту',todo:'Отправьте письмо с прайсом. Через 2 недели попробуйте снова, в другое время или с другим подходом.',tpl:['mail','Письмо']},
+endRetry:{end:'Нет связи',next:2,t:'Итог: повторить попытку',todo:'Следующая попытка через 1–2 дня, в другое время суток. Можно отправить сообщение.',tpl:['noanswer','Сообщение, если не дозвонились']},
+endNoAns:{end:'Нет связи',next:30,t:'Итог: нет связи',todo:'Отправьте письмо на почту с сайта. Повторная попытка через месяц.',tpl:['mail','Письмо']},
+endRefuse:{end:'Отказ',next:90,t:'Итог: отказ',todo:'Вежливо попрощайтесь: «Спасибо за время, если понадобятся люди или техника, мы на связи». Запишите причину отказа в комментарий. Вернёмся через 3 месяца.'},
+endStop:{end:'Не звонить',next:0,t:'Итог: не звонить',todo:'Больше не звоним этому агентству. Запишите причину.'},
+endDead:{end:'Не работает / неверный номер',next:0,t:'Итог: номер не рабочий',todo:'Поищите другой номер на сайте или в 2ГИС. Не нашли — исключите агентство из прозвона.'}
+};
+var SOS=[['Спросил цену','price'],['«Дорого»','expensive'],['«Дайте скидку»','discount'],['«Пришлите на почту»','gkMail'],['«Уже есть подрядчики»','have'],['«Нет проектов»','noProj'],['«Кто вы? Откуда номер?»','who'],['«Мы вас не знаем»','trust'],['Город','city'],['Договор, НДС, оплата','legal'],['«Сколько людей соберёте?»','capacity'],['Про технику','equip'],['«А под ключ можете?»','turnkey'],['«Я этим не занимаюсь»','notMe'],['Человек уволился','left'],['Личный номер','personal'],['Не знаю ответа','unknown'],['Связь оборвалась','dropped'],['Плохо слышно','badline'],['«Не звоните»','stop',1],['Грубит','angry',1]];
+
+var hist=[], cur='start', stage=document.getElementById('stage');
+function go(id,push){if(push!==false&&cur)hist.push(cur);cur=id;render();stage.scrollIntoView({block:'start',behavior:'auto'});var f=stage.querySelector('.opt');if(f)f.focus({preventScroll:true})}
+function back(){if(hist.length){cur=hist.pop();render()}}
+function fmtDate(d){return d.toISOString().slice(0,10)}
+function render(){
+  var n=N[cur], h='';
+  var path=hist.slice(-3).map(function(k){return N[k].t}).concat(n.t);
+  h+='<div class="crumbs">'+path.map(esc).join(' → ')+'</div><h1>'+esc(n.t)+'</h1>';
+  if(n.end){
+    h+='<div class="end"><div class="st">Статус: '+esc(n.end)+'</div><div>'+esc(n.todo)+'</div></div>';
+    if(n.tpl){h+='<div class="tpl"><div class="tpl-h"><span>'+esc(n.tpl[1])+'</span><button class="btn" type="button" id="cpTpl">Скопировать</button></div><pre id="tplText">'+esc(plain(T[n.tpl[0]]))+'</pre></div>'}
+    h+='<div class="q">Дальше</div><div class="opts"><button class="opt" type="button" data-copylog><kbd>1</kbd>Скопировать строку в таблицу</button><button class="opt" type="button" data-new><kbd>2</kbd>Следующий звонок</button></div>';
+  } else {
+    if(n.say)h+='<div class="say"><span class="lbl">Говорите</span>'+fill(n.say)+'</div>';
+    if(n.tip)h+='<div class="tip"><span class="lbl">Важно</span>'+fill(n.tip)+'</div>';
+    h+='<div class="q">'+(cur==='ring'?'Выберите':'Что ответил клиент')+'</div><div class="opts">';
+    n.o.forEach(function(o,i){h+='<button class="opt" type="button" data-go="'+o[1]+'"><kbd>'+(i+1)+'</kbd>'+esc(o[0])+'</button>'});
+    h+='</div>';
+  }
+  h+='<div class="nav"><button class="btn" type="button" id="bBack"'+(hist.length?'':' disabled')+'>← Назад</button><button class="btn" type="button" id="bRestart">К началу</button><span class="hint">Цифры 1–9 — ответ, Backspace — назад</span></div>';
+  stage.innerHTML=h;
+  if(n.end){
+    sel.value=n.end;
+    if(n.next>0){var d=new Date();d.setDate(d.getDate()+n.next);var nx=document.getElementById('fNext');if(!nx.value)nx.value=fmtDate(d)}
+    saveLog();
+  }
+}
+stage.addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  if(b.dataset.go)go(b.dataset.go);
+  else if(b.id==='bBack')back();
+  else if(b.id==='bRestart'){hist=[];go('start',false)}
+  else if(b.id==='cpTpl')copy(document.getElementById('tplText').innerText,'Текст скопирован');
+  else if(b.hasAttribute('data-copylog'))copyLog();
+  else if(b.hasAttribute('data-new'))newCall();
+});
+document.addEventListener('keydown',function(e){
+  var t=e.target.tagName;if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||document.getElementById('dlg').open)return;
+  if(/^[1-9]$/.test(e.key)){var bs=stage.querySelectorAll('.opt');var b=bs[+e.key-1];if(b){e.preventDefault();b.click()}}
+  else if(e.key==='Backspace'){e.preventDefault();back()}
+});
+var sos=document.getElementById('sos');
+SOS.forEach(function(s){var b=document.createElement('button');b.type='button';b.textContent=s[0];if(s[2])b.className='red';b.onclick=function(){go(s[1])};sos.appendChild(b)});
+
+/* ---------- Карточка звонка ---------- */
+var F=['fAgency','fLpr','fContact','fStatus','fNext','fNote'];
+function saveLog(){var o={};F.forEach(function(k){o[k]=document.getElementById(k).value});LS.set('quant_call',o)}
+(function(){var o=LS.get('quant_call',null);if(o)F.forEach(function(k){if(o[k]!=null)document.getElementById(k).value=o[k]})})();
+F.forEach(function(k){document.getElementById(k).addEventListener('input',function(){saveLog();if((k==='fLpr'||k==='fAgency')&&!N[cur].end)render()})});
+function copyLog(){
+  var v=function(k){return document.getElementById(k).value.replace(/[\t\n]+/g,' ').trim()};
+  var row=[fmtDate(new Date()),v('fAgency'),v('fLpr'),v('fContact'),v('fStatus')==='—'?'':v('fStatus'),v('fNext'),v('fNote')].join('\t');
+  copy(row,'Строка скопирована, вставьте в таблицу');
+}
+document.getElementById('btnCopyLog').onclick=copyLog;
+function newCall(){F.forEach(function(k){document.getElementById(k).value=k==='fStatus'?'—':''});saveLog();hist=[];go('start',false);document.getElementById('fAgency').focus()}
+document.getElementById('btnNew').onclick=newCall;
+
+function toast(m){var t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove()},1800)}
+function copy(txt,msg){
+  function fb(){var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();toast(ok?msg:'Не удалось скопировать: выделите текст вручную')}
+  try{navigator.clipboard.writeText(txt).then(function(){toast(msg)},fb)}catch(e){fb()}
+}
+
+/* ---------- Настройки ---------- */
+var dlg=document.getElementById('dlg');
+document.getElementById('btnSettings').onclick=function(){Object.keys(PH).forEach(function(k){document.getElementById(PH[k][0]).value=S[k]||''});if(dlg.showModal)dlg.showModal();else dlg.setAttribute('open','')};
+document.getElementById('setForm').addEventListener('submit',function(e){
+  var sub=e.submitter;if(sub&&sub.value==='save'){Object.keys(PH).forEach(function(k){S[k]=document.getElementById(PH[k][0]).value.trim()});LS.set('quant_settings',S);render();toast('Сохранено')}
+  if(!dlg.showModal){e.preventDefault();dlg.removeAttribute('open')}
+});
+
+render();
+})();
+</script>
+
+</body>
+</html>
